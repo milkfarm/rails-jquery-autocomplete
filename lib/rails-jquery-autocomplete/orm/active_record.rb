@@ -27,8 +27,14 @@ module RailsJQueryAutocomplete
         scopes.each { |scope| items = items.send(scope) } unless scopes.empty?
 
         items = items.select(get_autocomplete_select_clause(model, method, options)) unless options[:full_model]
-        items = items.where(get_autocomplete_where_clause(model, term, method, options)).
-            limit(limit).order(order)
+
+        items = if search_scope.blank?
+            items.where(get_autocomplete_where_clause(model, term, method, options))
+          else
+            items.send(search_scope, get_autocomplete_term_for_like(term, options))
+          end
+
+        items = items.limit(limit).order(order)
         items = items.where(where) unless where.blank?
 
         items
@@ -49,11 +55,10 @@ module RailsJQueryAutocomplete
 
       def get_autocomplete_where_clause(model, term, method, options)
         table_name = model.table_name
-        is_full_search = options[:full]
         is_case_sensitive_search = options[:case_sensitive]
         like_clause = (postgres?(model) && !is_case_sensitive_search ? 'ILIKE' : 'LIKE')
         column_transform = is_case_sensitive_search ? '' : 'LOWER'
-        term = "#{(is_full_search ? '%' : '')}#{term.gsub(/([_%\\])/, '\\\\\1')}%"
+        term = get_autocomplete_term_for_like(term, options)
         if options[:hstore]
           ["#{column_transform}(#{table_name}.#{method} -> '#{options[:hstore][:key]}') LIKE #{column_transform}(?)", term]
         elsif sqlite?
@@ -61,6 +66,11 @@ module RailsJQueryAutocomplete
         else
           ["#{column_transform}(#{table_name}.#{method}) #{like_clause} #{column_transform}(?)", term]
         end
+      end
+
+      def get_autocomplete_term_for_like(term, options)
+        is_full_search = options[:full]
+        "#{(is_full_search ? '%' : '')}#{term.gsub(/([_%\\])/, '\\\\\1')}%"
       end
 
       protected
