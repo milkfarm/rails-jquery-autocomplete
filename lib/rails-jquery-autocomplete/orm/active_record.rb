@@ -17,6 +17,7 @@ module RailsJQueryAutocomplete
         term    = parameters[:term]
         options = parameters[:options]
         method  = options[:hstore] ? options[:hstore][:method] : parameters[:method]
+        search_scope = options[:search_scope]
         scopes  = Array(options[:scopes])
         where   = options[:where]
         limit   = get_autocomplete_limit(options)
